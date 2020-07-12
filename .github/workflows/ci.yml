@@ -48,6 +48,18 @@ jobs:
           pushd build
           cmake ..
           popd
+      - name: build
+        run: |
+          pushd build
+          make -j2
+          popd
+      - name: install opengfx
+        run: |
+          pushd build/baseset
+          curl -L https://cdn.openttd.org/opengfx-releases/0.6.0/opengfx-0.6.0-all.zip -o opengfx-all.zip
+          unzip opengfx-all.zip
+          rm -f opengfx-all.zip
+          popd
       - name: make package
         run: |
           pushd build
