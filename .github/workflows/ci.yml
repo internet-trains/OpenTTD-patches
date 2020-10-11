@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [ jgrpp ]
+  pull_request:
+    branches: [ jgrpp ]
+
+jobs:
+  build_linux:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: prepare workspace
+      run: mkdir build
+    - name: update apt
+      run: "sudo apt-get update"
+    - name: install dependencies
+      run: "sudo apt-get install -y zlib1g-dev liblzo2-dev liblzma-dev libpng-dev libfreetype6-dev libfontconfig1-dev libicu-dev libsdl2-dev"
+    - name: cmake
+      run: |
+        pushd build
+        cmake ..
+        popd
+    - name: make package
+      run: |
+        pushd build
+        make package
+        popd
+    - name: upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: linux
+        path: build/bundles/*
+
+  build_macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: prepare workspace
+        run: mkdir build
+      - name: brew update
+        run: "brew update"
+      - name: install dependencies
+        run: "brew install zlib lzo xz libpng freetype fontconfig icu4c sdl2"
+      - name: cmake
+        run: |
+          pushd build
+          cmake ..
+          popd
+      - name: build
+        run: |
+          pushd build
+          make -j2
+          popd
+      - name: install opengfx
+        run: |
+          pushd build/baseset
+          curl -L https://cdn.openttd.org/opengfx-releases/0.6.0/opengfx-0.6.0-all.zip -o opengfx-all.zip
+          unzip opengfx-all.zip
+          rm -f opengfx-all.zip
+          popd
+      - name: make package
+        run: |
+          pushd build
+          make package
+          popd
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: macOS
+          path: build/bundles/*
+
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: prepare workspace
+        run: mkdir build
+      - name: set up vcpkg and install dependencies # should probably cache this but whatever
+        run: |
+          git clone --depth 1 https://github.com/Microsoft/vcpkg.git
+          pushd vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install liblzma:x64-windows-static libpng:x64-windows-static lzo:x64-windows-static zlib:x64-windows-static
+          popd
+      - name: cmake
+        run: |
+          pushd build
+          cmake.exe .. -G'Visual Studio 16 2019' -DCMAKE_TOOLCHAIN_FILE="..\vcpkg\scripts\buildsystems\vcpkg.cmake" -DVCPKG_TARGET_TRIPLET="x64-windows-static"
+          popd
+      - name: make package
+        run: |
+          pushd build
+          cmake.exe --build . --target PACKAGE --config RelWithDebInfo
+          popd
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: win64
+          path: build/bundles/*
